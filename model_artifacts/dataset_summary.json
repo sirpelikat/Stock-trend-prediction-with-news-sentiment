@@ -1,0 +1,33 @@
+{
+  "total_raw_rows": 24388,
+  "train_rows": 16685,
+  "val_rows": 4768,
+  "test_rows": 2384,
+  "train_distribution": {
+    "flat": 15466,
+    "uptrend": 854,
+    "downtrend": 365
+  },
+  "val_distribution": {
+    "flat": 4419,
+    "uptrend": 245,
+    "downtrend": 104
+  },
+  "test_distribution": {
+    "flat": 2210,
+    "uptrend": 122,
+    "downtrend": 52
+  },
+  "top_companies": {
+    "CIMB": 884,
+    "AIRASIA": 772,
+    "TOPGLOV": 470,
+    "GENTING": 450,
+    "SIME": 394,
+    "AXIATA": 243,
+    "CIHLDG": 241,
+    "SAPNRG": 213,
+    "SUNWAY": 207,
+    "SERBADK": 200
+  }
+}
