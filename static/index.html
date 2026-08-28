@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Trend Prediction & NLP Sentiment Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            darkbg: '#0b0f19',
+            darkcard: '#131b2e',
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="bg-[#0b0f19] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3.5">
+      <div class="p-2.5 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white shadow-lg shadow-indigo-500/20">
+        <i data-lucide="trending-up" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-xl font-bold tracking-tight text-white">Stock Trend & Sentiment AI</h1>
+          <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">CPC353 NLP</span>
+        </div>
+        <p class="text-xs text-slate-400">Deep Learning LSTM (GloVe-50) & Hidden Markov Models</p>
+      </div>
+    </div>
+
+    <!-- Status Pills -->
+    <div class="flex items-center gap-3">
+      <div id="status-pill" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="status-text">LSTM Model Active</span>
+      </div>
+      <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
+        <i data-lucide="cpu" class="w-3.5 h-3.5 text-indigo-400"></i>
+        <span>GloVe Wiki-Gigaword 50d</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- TAB NAVIGATION BAR -->
+  <div class="bg-slate-900/90 border-b border-slate-800 px-6 py-2 overflow-x-auto">
+    <nav class="flex space-x-2 min-w-max" id="nav-tabs">
+      <button onclick="switchTab('predict')" id="tab-btn-predict" class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 border border-transparent text-slate-300 hover:text-white">
+        <i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i>
+        <span>Live Trend Predictor</span>
+      </button>
+      <button onclick="switchTab('hmm')" id="tab-btn-hmm" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 border border-transparent text-slate-300 hover:text-white">
+        <i data-lucide="git-merge" class="w-4 h-4 text-purple-400"></i>
+        <span>HMM Market Regimes</span>
+      </button>
+      <button onclick="switchTab('dataset')" id="tab-btn-dataset" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 border border-transparent text-slate-300 hover:text-white">
+        <i data-lucide="database" class="w-4 h-4 text-cyan-400"></i>
+        <span>Dataset & EDA (SMOTE)</span>
+      </button>
+      <button onclick="switchTab('metrics')" id="tab-btn-metrics" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 border border-transparent text-slate-300 hover:text-white">
+        <i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-400"></i>
+        <span>Model Architecture & Metrics</span>
+      </button>
+      <button onclick="switchTab('ticker')" id="tab-btn-ticker" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 border border-transparent text-slate-300 hover:text-white">
+        <i data-lucide="activity" class="w-4 h-4 text-pink-400"></i>
+        <span>Live Market Feeds</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: LIVE PREDICTOR -->
+    <!-- ========================================================================= -->
+    <section id="tab-predict" class="tab-content space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Input Column (5 cols) -->
+        <div class="lg:col-span-6 space-y-5">
+          <div class="glass-card rounded-2xl p-6 shadow-xl border border-slate-800/80">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                <i data-lucide="file-text" class="w-5 h-5 text-indigo-400"></i>
+                Financial News Headline Input
+              </h2>
+              <span class="text-xs text-slate-400">NLP Tokenizer Ready</span>
+            </div>
+
+            <!-- Presets -->
+            <div class="mb-4">
+              <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Try Sample Scenarios:</label>
+              <div class="flex flex-wrap gap-2">
+                <button onclick="setHeadlinePreset(0)" class="px-2.5 py-1 text-xs rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
+                  🚀 Earnings Jump 10.87%
+                </button>
+                <button onclick="setHeadlinePreset(1)" class="px-2.5 py-1 text-xs rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 transition">
+                  📉 Profit Plunge & Probe
+                </button>
+                <button onclick="setHeadlinePreset(2)" class="px-2.5 py-1 text-xs rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 hover:bg-amber-500/20 transition">
+                  ⚖️ Routine Board Meeting
+                </button>
+                <button onclick="setHeadlinePreset(3)" class="px-2.5 py-1 text-xs rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 hover:bg-purple-500/20 transition">
+                  💼 Major Acquisition Deal
+                </button>
+              </div>
+            </div>
+
+            <!-- Textarea -->
+            <div class="space-y-3">
+              <div>
+                <label for="headline-input" class="block text-xs font-medium text-slate-300 mb-1.5">Headline or Tweet Text</label>
+                <textarea id="headline-input" rows="4" class="w-full bg-slate-950/70 border border-slate-700/80 rounded-xl p-3.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none" placeholder="e.g. Amcorp Properties jumps 10.87% on solid 3Q earnings growth and dividend announcement..."></textarea>
+              </div>
+
+              <!-- Company Tag (Optional) -->
+              <div>
+                <label for="company-input" class="block text-xs font-medium text-slate-300 mb-1.5">Company / Ticker (Optional)</label>
+                <input type="text" id="company-input" placeholder="e.g. Top Glove, Axiata, Maybank, TSLA" class="w-full bg-slate-950/70 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+              </div>
+
+              <div class="pt-2 flex items-center justify-between gap-3">
+                <button onclick="clearPredictInput()" class="px-4 py-2.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                  Clear
+                </button>
+                <button onclick="runPrediction()" id="predict-btn" class="flex-1 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition active:scale-[0.98]">
+                  <i data-lucide="zap" class="w-4 h-4"></i>
+                  <span>Analyze & Predict Trend</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- NLP Preprocessing Pipeline Breakdown Card -->
+          <div class="glass-card rounded-2xl p-5 border border-slate-800/80">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <i data-lucide="git-commit" class="w-4 h-4 text-cyan-400"></i>
+              NLP Pipeline Transformation
+            </h3>
+            <div class="space-y-2.5 text-xs">
+              <div class="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/60">
+                <span class="text-slate-400 font-medium">1. Text Normalization:</span>
+                <p id="cleaned-text-preview" class="font-mono text-cyan-300 mt-1 break-words">Awaiting input...</p>
+              </div>
+              <div class="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/60">
+                <span class="text-slate-400 font-medium">2. TweetTokenizer Tokens & GloVe Embeddings:</span>
+                <div id="tokens-container" class="flex flex-wrap gap-1.5 mt-2 max-h-32 overflow-y-auto">
+                  <span class="text-slate-500 italic">No tokens parsed yet.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Output Column (6 cols) -->
+        <div class="lg:col-span-6 space-y-5">
+          <!-- Prediction Verdict Card -->
+          <div id="verdict-card" class="glass-card rounded-2xl p-6 shadow-xl border border-slate-800/80 relative overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Model Inference Output</span>
+              <span id="pred-confidence-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300">
+                Confidence: --%
+              </span>
+            </div>
+
+            <!-- Recommendation Hero -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 mb-6">
+              <div>
+                <span class="text-xs font-medium text-slate-400">Predicted Stock Trend:</span>
+                <h2 id="pred-trend-label" class="text-3xl font-extrabold text-white tracking-tight mt-1 capitalize">
+                  Awaiting Input
+                </h2>
+                <p id="pred-summary" class="text-xs text-slate-400 mt-1 max-w-sm">
+                  Click 'Analyze & Predict Trend' to evaluate headline market sentiment.
+                </p>
+              </div>
+              <div id="signal-badge" class="px-4 py-3 rounded-2xl bg-slate-800 border border-slate-700 text-center min-w-[130px] self-start sm:self-center">
+                <span class="block text-[10px] uppercase font-bold text-slate-400">Signal</span>
+                <span id="signal-text" class="text-base font-black text-slate-200">STANDBY</span>
+              </div>
+            </div>
+
+            <!-- Softmax Probability Bars -->
+            <div class="space-y-4">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Class Probability Distribution</h4>
+
+              <!-- Uptrend Bar -->
+              <div>
+                <div class="flex justify-between text-xs font-semibold mb-1">
+                  <span class="flex items-center gap-1 text-emerald-400">
+                    <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i> Uptrend (> +10%)
+                  </span>
+                  <span id="prob-val-uptrend" class="text-emerald-400 font-mono">0.0%</span>
+                </div>
+                <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                  <div id="prob-bar-uptrend" class="prob-bar h-full bg-emerald-500 rounded-full w-0"></div>
+                </div>
+              </div>
+
+              <!-- Flat Bar -->
+              <div>
+                <div class="flex justify-between text-xs font-semibold mb-1">
+                  <span class="flex items-center gap-1 text-amber-400">
+                    <i data-lucide="minus" class="w-3.5 h-3.5"></i> Flat (-10% to +10%)
+                  </span>
+                  <span id="prob-val-flat" class="text-amber-400 font-mono">0.0%</span>
+                </div>
+                <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                  <div id="prob-bar-flat" class="prob-bar h-full bg-amber-500 rounded-full w-0"></div>
+                </div>
+              </div>
+
+              <!-- Downtrend Bar -->
+              <div>
+                <div class="flex justify-between text-xs font-semibold mb-1">
+                  <span class="flex items-center gap-1 text-rose-400">
+                    <i data-lucide="arrow-down-right" class="w-3.5 h-3.5"></i> Downtrend (< -10%)
+                  </span>
+                  <span id="prob-val-downtrend" class="text-rose-400 font-mono">0.0%</span>
+                </div>
+                <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                  <div id="prob-bar-downtrend" class="prob-bar h-full bg-rose-500 rounded-full w-0"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Softmax Radar/Chart Container -->
+            <div class="mt-6 pt-5 border-t border-slate-800/80">
+              <div class="h-44">
+                <canvas id="predictProbChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: HIDDEN MARKOV MODEL (HMM) -->
+    <!-- ========================================================================= -->
+    <section id="tab-hmm" class="tab-content hidden space-y-6">
+      <!-- HMM Intro Banner -->
+      <div class="glass-card rounded-2xl p-6 border border-purple-500/20 bg-gradient-to-r from-purple-950/30 via-slate-900 to-slate-900">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i data-lucide="git-merge" class="w-5 h-5 text-purple-400"></i>
+              Hidden Markov Model Market Regimes (CPC353 Part 3)
+            </h2>
+            <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+              Markovian state modeling assumes market trends ($\text{Downtrend}, \text{Flat}, \text{Uptrend}$) are hidden states generating visible price volatility and news volume emissions.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="hmm-obs-type" class="text-xs text-slate-300 font-medium whitespace-nowrap">Emission Observation:</label>
+            <select id="hmm-obs-type" aria-label="Emission Observation" title="Emission Observation" onchange="loadHmmData()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:ring-1 focus:ring-purple-500">
+              <option value="volatility">Price Volatility (Low / Med / High)</option>
+              <option value="day_of_week">Day of the Week (Mon - Fri)</option>
+              <option value="title_length">Title Length Bucket (Short / Med / Long)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- HMM Matrices Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Initial Probabilities (pi) & Transition Matrix (A) -->
+        <div class="lg:col-span-6 space-y-5">
+          <!-- Start Probabilities Pi -->
+          <div class="glass-card rounded-2xl p-5 border border-slate-800">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">1. &pi;</span>
+              Initial State Probabilities (Start Vector)
+            </h3>
+            <div id="pi-container" class="grid grid-cols-3 gap-3 text-center">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Transition Matrix (A) -->
+          <div class="glass-card rounded-2xl p-5 border border-slate-800">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">2. A</span>
+                State Transition Matrix $P(S_{t} \mid S_{t-1})$
+              </h3>
+              <span class="text-[11px] text-slate-500">Row: From &rarr; Col: To</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table id="trans-matrix-table" class="w-full text-xs text-center border-collapse custom-table">
+                <!-- Rendered via JS -->
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Emission Matrix (B) -->
+        <div class="lg:col-span-6 space-y-5">
+          <div class="glass-card rounded-2xl p-5 border border-slate-800 h-full flex flex-col">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">3. B</span>
+                Emission Matrix $P(O_{t} \mid S_{t})$
+              </h3>
+              <span class="text-[11px] text-slate-500">Row: State &rarr; Col: Observation</span>
+            </div>
+            <div class="overflow-x-auto flex-1">
+              <table id="emission-matrix-table" class="w-full text-xs text-center border-collapse custom-table">
+                <!-- Rendered via JS -->
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Viterbi Sequence Decoder Simulator -->
+      <div class="glass-card rounded-2xl p-6 border border-slate-800">
+        <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
+          <i data-lucide="cpu" class="w-4 h-4 text-purple-400"></i>
+          Interactive Viterbi Path Decoder
+        </h3>
+        <p class="text-xs text-slate-400 mb-4">
+          Provide a sequential series of market observations to find the mathematically optimal sequence of hidden market states.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+          <div class="md:col-span-8 space-y-2">
+            <label class="block text-xs font-medium text-slate-300">Selected Observations Sequence ($O_1, O_2, \dots, O_T$):</label>
+            <div id="viterbi-builder" class="flex flex-wrap gap-2 p-3 bg-slate-950 rounded-xl border border-slate-800 min-h-[50px] items-center">
+              <!-- Observation pills added here -->
+            </div>
+            <div class="flex items-center gap-2 pt-1">
+              <span class="text-xs text-slate-500">Click to add observation:</span>
+              <div id="obs-available-buttons" class="flex flex-wrap gap-1.5">
+                <!-- Dynamic buttons -->
+              </div>
+            </div>
+          </div>
+
+          <div class="md:col-span-4 flex items-center gap-2">
+            <button onclick="clearViterbi()" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-xl text-slate-300 transition">
+              Reset
+            </button>
+            <button onclick="runViterbi()" class="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-xs font-semibold rounded-xl text-white shadow-lg shadow-purple-600/30 flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="play" class="w-3.5 h-3.5"></i>
+              Decode Most Likely State Path
+            </button>
+          </div>
+        </div>
+
+        <!-- Viterbi Output Result -->
+        <div id="viterbi-result-container" class="mt-5 pt-5 border-t border-slate-800 hidden">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Most Likely Hidden State Trajectory:</h4>
+            <span id="viterbi-path-prob" class="font-mono text-xs text-purple-300">Joint Path Probability: --</span>
+          </div>
+          <div id="viterbi-path-steps" class="flex flex-wrap items-center gap-3">
+            <!-- Rendered steps -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: DATASET EXPLORER & SMOTE (PART 1) -->
+    <!-- ========================================================================= -->
+    <section id="tab-dataset" class="tab-content hidden space-y-6">
+      <!-- Dataset KPI Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="glass-card rounded-2xl p-4 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium">Total Raw Samples</span>
+          <h3 id="kpi-raw-rows" class="text-2xl font-bold text-white mt-1">16,317</h3>
+          <span class="text-[11px] text-slate-500">financial news records</span>
+        </div>
+        <div class="glass-card rounded-2xl p-4 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium">Training Split (70%)</span>
+          <h3 id="kpi-train-rows" class="text-2xl font-bold text-indigo-400 mt-1">16,685</h3>
+          <span class="text-[11px] text-slate-500">train_data_final.csv</span>
+        </div>
+        <div class="glass-card rounded-2xl p-4 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium">Validation Split (20%)</span>
+          <h3 id="kpi-val-rows" class="text-2xl font-bold text-purple-400 mt-1">4,768</h3>
+          <span class="text-[11px] text-slate-500">val_data_final.csv</span>
+        </div>
+        <div class="glass-card rounded-2xl p-4 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium">Test Split (10%)</span>
+          <h3 id="kpi-test-rows" class="text-2xl font-bold text-emerald-400 mt-1">2,384</h3>
+          <span class="text-[11px] text-slate-500">test_data_final.csv</span>
+        </div>
+      </div>
+
+      <!-- Charts Row: Distribution & SMOTE -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-6 glass-card rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+              <i data-lucide="scale" class="w-4 h-4 text-cyan-400"></i>
+              Class Balance: Raw vs SMOTE Over-sampling
+            </h3>
+          </div>
+          <div class="h-64">
+            <canvas id="smoteComparisonChart"></canvas>
+          </div>
+        </div>
+
+        <div class="lg:col-span-6 glass-card rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-4 h-4 text-emerald-400"></i>
+              Relative Price Change Distribution (Before vs After)
+            </h3>
+          </div>
+          <div class="h-64">
+            <canvas id="priceDistChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Data Table Viewer -->
+      <div class="glass-card rounded-2xl p-5 border border-slate-800">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="table" class="w-4 h-4 text-indigo-400"></i>
+              Dataset Records Browser
+            </h3>
+            <p class="text-xs text-slate-400">Inspect preprocessed titles, price changes, and trend categorizations</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="sample-split-select" aria-label="Dataset Split" title="Dataset Split" onchange="loadDatasetSample()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-1.5 text-slate-200">
+              <option value="train">Train Set (train_data_final.csv)</option>
+              <option value="val">Validation Set (val_data_final.csv)</option>
+              <option value="test">Test Set (test_data_final.csv)</option>
+              <option value="raw">Raw Data (stock_trend.csv)</option>
+            </select>
+            <select id="sample-trend-select" aria-label="Trend Filter" title="Trend Filter" onchange="loadDatasetSample()" class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-1.5 text-slate-200">
+              <option value="all">All Trends</option>
+              <option value="uptrend">Uptrend</option>
+              <option value="flat">Flat</option>
+              <option value="downtrend">Downtrend</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-800">
+          <table id="dataset-sample-table" class="w-full text-xs text-left custom-table">
+            <thead>
+              <tr id="dataset-table-head">
+                <th class="p-3">Title</th>
+                <th class="p-3">Company</th>
+                <th class="p-3">Before Price</th>
+                <th class="p-3">After Price</th>
+                <th class="p-3">Rel Change</th>
+                <th class="p-3">Trend</th>
+              </tr>
+            </thead>
+            <tbody id="dataset-table-body" class="divide-y divide-slate-800/60 font-mono">
+              <!-- Loaded dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: MODEL ARCHITECTURE & METRICS (PART 2) -->
+    <!-- ========================================================================= -->
+    <section id="tab-metrics" class="tab-content hidden space-y-6">
+      <!-- Accuracy & Loss KPI Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="glass-card rounded-2xl p-4 border border-emerald-500/20 bg-emerald-950/10">
+          <span class="text-xs text-slate-400 font-medium">Test Set Accuracy</span>
+          <h3 id="metric-test-acc" class="text-3xl font-extrabold text-emerald-400 mt-1">91.90%</h3>
+          <span class="text-[11px] text-emerald-500/80">Evaluated on 2,384 test samples</span>
+        </div>
+        <div class="glass-card rounded-2xl p-4 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium">Macro Avg F1-Score</span>
+          <h3 id="metric-macro-f1" class="text-3xl font-extrabold text-indigo-400 mt-1">0.364</h3>
+          <span class="text-[11px] text-slate-500">Unweighted class average</span>
+        </div>
+        <div class="glass-card rounded-2xl p-4 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium">Weighted Avg F1-Score</span>
+          <h3 id="metric-weighted-f1" class="text-3xl font-extrabold text-purple-400 mt-1">0.892</h3>
+          <span class="text-[11px] text-slate-500">Support-weighted average</span>
+        </div>
+        <div class="glass-card rounded-2xl p-4 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium">GloVe Embedding Dimensions</span>
+          <h3 class="text-3xl font-extrabold text-cyan-400 mt-1">50-D</h3>
+          <span class="text-[11px] text-slate-500">Max sequence length = 30 tokens</span>
+        </div>
+      </div>
+
+      <!-- Training Curves Chart & Confusion Matrix -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-7 glass-card rounded-2xl p-5 border border-slate-800">
+          <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <i data-lucide="trending-up" class="w-4 h-4 text-indigo-400"></i>
+            Training & Validation Learning Curves (10 Epochs)
+          </h3>
+          <div class="h-64">
+            <canvas id="trainingHistoryChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Confusion Matrix -->
+        <div class="lg:col-span-5 glass-card rounded-2xl p-5 border border-slate-800">
+          <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <i data-lucide="grid" class="w-4 h-4 text-purple-400"></i>
+            Test Confusion Matrix (Actual vs Predicted)
+          </h3>
+          <div class="flex flex-col items-center justify-center p-2">
+            <div id="conf-matrix-grid" class="w-full max-w-xs space-y-2">
+              <!-- Rendered via JS -->
+            </div>
+            <div class="flex justify-between w-full max-w-xs text-[10px] text-slate-400 mt-3 px-1">
+              <span>Rows: Actual</span>
+              <span>Cols: Predicted</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Neural Network Architecture Visualizer -->
+      <div class="glass-card rounded-2xl p-5 border border-slate-800">
+        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+          LSTM Neural Network Architecture Pipeline
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
+            <span class="text-[10px] font-bold text-slate-500 uppercase">Layer 1</span>
+            <h4 class="text-xs font-bold text-slate-200 mt-0.5">Input Layer</h4>
+            <p class="text-[11px] font-mono text-cyan-400 mt-1">(30, 50)</p>
+            <span class="text-[10px] text-slate-500">Padded GloVe text vectors</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/80 border border-indigo-500/30">
+            <span class="text-[10px] font-bold text-indigo-400 uppercase">Layer 2</span>
+            <h4 class="text-xs font-bold text-slate-200 mt-0.5">LSTM Layer</h4>
+            <p class="text-[11px] font-mono text-indigo-400 mt-1">64 units, seq=True</p>
+            <span class="text-[10px] text-slate-500">29,440 parameters</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
+            <span class="text-[10px] font-bold text-slate-500 uppercase">Layer 3</span>
+            <h4 class="text-xs font-bold text-slate-200 mt-0.5">Flatten Layer</h4>
+            <p class="text-[11px] font-mono text-cyan-400 mt-1">(1920)</p>
+            <span class="text-[10px] text-slate-500">Flattens 30x64 sequence</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
+            <span class="text-[10px] font-bold text-slate-500 uppercase">Layer 4</span>
+            <h4 class="text-xs font-bold text-slate-200 mt-0.5">Dense Layer</h4>
+            <p class="text-[11px] font-mono text-cyan-400 mt-1">32 units, ReLU</p>
+            <span class="text-[10px] text-slate-500">61,472 parameters</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
+            <span class="text-[10px] font-bold text-slate-500 uppercase">Layer 5</span>
+            <h4 class="text-xs font-bold text-slate-200 mt-0.5">Dropout Layer</h4>
+            <p class="text-[11px] font-mono text-amber-400 mt-1">rate = 0.5</p>
+            <span class="text-[10px] text-slate-500">Prevents overfitting</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/80 border border-emerald-500/30">
+            <span class="text-[10px] font-bold text-emerald-400 uppercase">Layer 6</span>
+            <h4 class="text-xs font-bold text-slate-200 mt-0.5">Dense Output</h4>
+            <p class="text-[11px] font-mono text-emerald-400 mt-1">3 units, Softmax</p>
+            <span class="text-[10px] text-slate-500">Uptrend / Flat / Downtrend</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 5: LIVE MARKET FEEDS (YFINANCE) -->
+    <!-- ========================================================================= -->
+    <section id="tab-ticker" class="tab-content hidden space-y-6">
+      <div class="glass-card rounded-2xl p-6 border border-slate-800">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="activity" class="w-5 h-5 text-pink-400"></i>
+              Real-Time Stock News & Live Model Trend Analysis
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Fetches live financial headlines via Yahoo Finance and passes them through our GloVe + LSTM model.
+            </p>
+          </div>
+
+          <!-- Ticker Search -->
+          <div class="flex items-center gap-2">
+            <input type="text" id="live-symbol-input" value="AAPL" placeholder="Symbol (e.g. AAPL, TSLA, TOPGLOV.KL)" class="bg-slate-950 border border-slate-700 text-xs rounded-xl px-3.5 py-2 text-slate-100 uppercase focus:ring-2 focus:ring-pink-500 focus:outline-none" />
+            <button onclick="fetchLiveTicker()" class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-xs font-semibold rounded-xl text-white shadow-lg shadow-pink-600/30 flex items-center gap-1.5 transition">
+              <i data-lucide="search" class="w-3.5 h-3.5"></i>
+              Fetch
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Ticker Suggestions -->
+        <div class="flex flex-wrap gap-2 mb-6">
+          <span class="text-xs text-slate-500 self-center">Popular:</span>
+          <button onclick="quickTicker('AAPL')" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Apple (AAPL)</button>
+          <button onclick="quickTicker('TSLA')" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Tesla (TSLA)</button>
+          <button onclick="quickTicker('NVDA')" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Nvidia (NVDA)</button>
+          <button onclick="quickTicker('MAYBANK.KL')" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Maybank (KLSE)</button>
+          <button onclick="quickTicker('TOPGLOV.KL')" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Top Glove (KLSE)</button>
+        </div>
+
+        <!-- Live Ticker Header Card -->
+        <div id="live-ticker-header" class="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="p-2.5 rounded-xl bg-pink-500/10 text-pink-400 border border-pink-500/20">
+              <i data-lucide="trending-up" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <span class="text-xs text-slate-400 font-medium">Selected Ticker</span>
+              <h3 id="live-ticker-symbol" class="text-xl font-black text-white">AAPL</h3>
+            </div>
+          </div>
+          <div class="text-right">
+            <span id="live-ticker-price" class="text-2xl font-bold font-mono text-slate-100">$---.--</span>
+            <div id="live-ticker-change" class="text-xs font-semibold text-emerald-400 font-mono mt-0.5">+0.00%</div>
+          </div>
+        </div>
+
+        <!-- Live News Feeds with LSTM Predictions -->
+        <div class="space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Live News Articles & Model Trend Forecast</h4>
+          <div id="live-news-list" class="space-y-3">
+            <div class="text-center py-8 text-slate-500 text-xs">
+              Fetching live news articles and computing sentiment trends...
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-800/80 py-4 px-6 text-center text-xs text-slate-500">
+    <p>CPC353 Assignment 2 - Stock Trend Prediction with News Sentiment &bull; Built with FastAPI, GloVe Embeddings, LSTM & HMM &bull; Universiti Sains Malaysia</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
+
