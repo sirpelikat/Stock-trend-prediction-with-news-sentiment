@@ -185,3 +185,4 @@ Integrates real-world market data via `yfinance`:
 
 * **Q: Where are the trained model files stored?**  
   **A**: In the [`model_artifacts/`](file:///c:/Users/danni/OneDrive/Desktop/USM/sem%205/CPC353/Stock-trend-prediction-with-news-sentiment/model_artifacts/) directory (`lstm_model.keras`, `metrics.json`, `dataset_summary.json`).
+
